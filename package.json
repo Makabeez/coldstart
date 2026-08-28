@@ -1,0 +1,27 @@
+{
+  "name": "coldstart",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "probe": "tsx scripts/probe.ts",
+    "quote": "tsx src/quote/loop.ts",
+    "redeem": "tsx src/redeem/sweep.ts",
+    "judge-demo": "tsx scripts/judge-demo.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@somnia-chain/markets-sdk": "0.28.1",
+    "dotenv": "^17.4.2",
+    "viem": "^2.56.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  }
+}
