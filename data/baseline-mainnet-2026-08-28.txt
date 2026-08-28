@@ -1,0 +1,4 @@
+
+> coldstart@1.0.0 probe
+> tsx scripts/probe.ts
+
