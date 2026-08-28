@@ -13,7 +13,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@somnia-chain/markets-sdk": "0.28.1",
     "dotenv": "^17.4.2",

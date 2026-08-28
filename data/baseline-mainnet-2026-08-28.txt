@@ -2,3 +2,44 @@
 > coldstart@1.0.0 probe
 > tsx scripts/probe.ts
 
+network: mainnet(5031)  decimals: 18
+countBinaryMarkets(all)      = 7948
+listPastBinaryMarkets(final) = 500
+
+bucket        markets  with-trades   volume     trades
+BTC/15m           200           79       3596        147
+BTC/60m            50           20       2682         63
+ETH/15m           200           51        252         57
+ETH/60m            50           10         58         15
+
+settled with >0 trades: 160/500
+
+  BTC 15m expiry=1787951700
+    resolved=true voided=false winner=1
+    open=7740745 close=7740000
+    candles=1 fills=1
+    oracle=https://prd.oracle.somnia.host/questions/48254?view=graph
+
+  ETH 15m expiry=1787950800
+    resolved=true voided=false winner=1
+    open=242803 close=242740
+    candles=1 fills=1
+    oracle=https://prd.oracle.somnia.host/questions/48240?view=graph
+
+  BTC 60m expiry=1787940000
+    resolved=true voided=false winner=0
+    open=7778766 close=7790326
+    candles=1 fills=1
+    oracle=https://prd.oracle.somnia.host/questions/48204?view=graph
+
+  BTC 15m expiry=1787940000
+    resolved=true voided=false winner=0
+    open=7777780 close=7790326
+    candles=1 fills=1
+    oracle=https://prd.oracle.somnia.host/questions/48204?view=graph
+
+  BTC 15m expiry=1787930100
+    resolved=true voided=false winner=1
+    open=7954280 close=7932415
+    candles=1 fills=1
+    oracle=https://prd.oracle.somnia.host/questions/48178?view=graph
