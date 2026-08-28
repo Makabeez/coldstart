@@ -44,4 +44,4 @@ async function main() {
     oracle=https://prd.oracle.somnia.host/questions/${m.oracleQuestionId}?view=graph`);
   }
 }
-main().catch((e) => { console.error("PROBE FAILED:", e?.message ?? e); process.exit(1); });
+main().then(() => process.exit(0)).catch((e) => { console.error("PROBE FAILED:", e?.message ?? e); process.exit(1); });

@@ -2,3 +2,49 @@
 > coldstart@1.0.0 probe
 > tsx scripts/probe.ts
 
+network: shannon(50312)  decimals: 6
+countBinaryMarkets(all)      = 10000
+listPastBinaryMarkets(final) = 500
+
+bucket        markets  with-trades   volume     trades
+BTC/1m            205            1          2          1
+BTC/240m            1            1         26          2
+BTC/5m             41           11        141         21
+BTC/60m             3            1          4          4
+DECEDO/5m           1            0          0          0
+ETH/1m            205            1          2          1
+ETH/240m            1            0          0          0
+ETH/5m             40           11         35         23
+ETH/60m             3            3         44         10
+
+settled with >0 trades: 29/500
+
+  BTC 5m expiry=1787951100
+    resolved=true voided=false winner=1
+    open=undefined close=undefined
+    candles=1 fills=1
+    oracle=https://prd.oracle.somnia.host/questions/106995298465820451306165527273933004585485301910117893440719721507742892331651?view=graph
+
+  ETH 5m expiry=1787951100
+    resolved=true voided=false winner=1
+    open=undefined close=undefined
+    candles=1 fills=4
+    oracle=https://prd.oracle.somnia.host/questions/87977437204663624049608406108307242911246098480121391640088006675890236111062?view=graph
+
+  ETH 60m expiry=1787950800
+    resolved=true voided=false winner=1
+    open=243539 close=242740
+    candles=1 fills=1
+    oracle=https://prd.oracle.somnia.host/questions/46072?view=graph
+
+  BTC 60m expiry=1787950800
+    resolved=true voided=false winner=1
+    open=7755005 close=7740745
+    candles=1 fills=4
+    oracle=https://prd.oracle.somnia.host/questions/46071?view=graph
+
+  ETH 5m expiry=1787947500
+    resolved=true voided=false winner=1
+    open=undefined close=undefined
+    candles=1 fills=4
+    oracle=https://prd.oracle.somnia.host/questions/42009342816388654888871706916201317829833410595187284113095313643631987728125?view=graph

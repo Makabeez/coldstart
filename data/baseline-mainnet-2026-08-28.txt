@@ -3,7 +3,7 @@
 > tsx scripts/probe.ts
 
 network: mainnet(5031)  decimals: 18
-countBinaryMarkets(all)      = 7948
+countBinaryMarkets(all)      = 7950
 listPastBinaryMarkets(final) = 500
 
 bucket        markets  with-trades   volume     trades
