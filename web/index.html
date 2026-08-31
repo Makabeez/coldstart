@@ -74,7 +74,7 @@ const API = location.hostname.includes("baserep")
   : location.protocol + "//" + location.hostname + ":8095";
 
 const clock = s => s<0 ? "expired" : s<60 ? s+"s" : s<3600 ? Math.floor(s/60)+"m "+(s%60)+"s" : Math.floor(s/3600)+"h "+Math.floor(s%3600/60)+"m";
-const cls = v => v==="coin flip"?"v-coin":v==="live"?"v-live":v==="mostly decided"?"v-decided":"v-un";
+const cls = v => v==="coin flip"?"v-coin":v==="live"?"v-live":v==="already decided"?"v-decided":"v-un";
 const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 async function windows(){
@@ -88,7 +88,7 @@ async function windows(){
     g.innerHTML = d.windows.map(w=>{
       const up = w.up==null?null:Math.round(w.up*100);
       return `<div class="card"><div class="row">
-        <div class="mkt">${esc(w.asset)} ${esc(w.cadence)}<small>${w.strike?"strike "+w.strike.toLocaleString():"vs open"}</small></div>
+        <div class="mkt">${esc(w.asset)} ${esc(w.cadence)}<small>${w.strike?"strike "+w.strike.toLocaleString():"vs open"}${w.venue?" · venue "+esc(w.venue):""}</small></div>
         <div class="probwrap">
           <div class="track">${up==null?"":`<div class="pu" style="width:${up}%"></div><div class="pd" style="width:${100-up}%"></div>`}</div>
           <div class="pnum">${up==null?"no book":`<b>${up}%</b> up / <i>${100-up}%</i> down`}</div>

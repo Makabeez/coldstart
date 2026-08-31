@@ -42,21 +42,37 @@ function summary(): any | null {
 }
 
 /**
- * Verdict thresholds come from the measured curve, not from taste.
- * Brier 0.25 is what a constant 0.5 scores; 0 is perfect foresight.
+ * Verdict = measured cadence skill + the window's own live quote.
+ *
+ * skill = 1 - Brier/0.25 : how much better than quoting a flat 50/50.
+ *   <= 0.20 skill  -> the price barely beats a coin flip at this cadence
+ * "already decided" is a property of THIS window's quote, not of the cadence
+ * average — aggregate Brier is dominated by late-life snapshots and would
+ * mislabel a live 15m window as settled.
  */
-function verdictFor(intervalSec: number) {
+const EXTREME = 0.05;          // quote within 5 points of certainty
+const SKILL_FLOOR = 0.20;      // below this the cadence is a coin flip
+
+function verdictFor(intervalSec: number, mid: number | null) {
+  if (mid == null) return { verdict: "no book", skill: null, brier: null, n: 0,
+                            why: "no resting liquidity on this window yet — nothing is being priced" };
   const s = summary();
   const row = s?.cadences?.find((c: any) => c.intervalSec === snapCadence(intervalSec));
-  if (!row) return { verdict: "unmeasured", brier: null, n: 0,
+
+  if (mid <= EXTREME || mid >= 1 - EXTREME) {
+    const side = mid >= 0.5 ? "up" : "down";
+    return { verdict: "already decided", skill: row ? +(1 - row.brier / 0.25).toFixed(3) : null,
+             brier: row?.brier ?? null, n: row?.n ?? 0,
+             why: `the book prices ${side} at ${(mid >= 0.5 ? mid : 1 - mid).toFixed(2)} — inside ${EXTREME} of certainty, so there is little left to take a view on` };
+  }
+  if (!row) return { verdict: "unmeasured", skill: null, brier: null, n: 0,
                      why: "no settled windows observed at this cadence yet" };
-  const b = row.brier as number;
-  if (b > 0.20) return { verdict: "coin flip", brier: b, n: row.n,
-    why: `over ${row.n} settled ${row.label} windows the quote scored ${b.toFixed(3)} against the 0.25 a constant 50/50 scores — the price carries almost no information` };
-  if (b > 0.06) return { verdict: "live", brier: b, n: row.n,
-    why: `over ${row.n} settled ${row.label} windows the quote scored ${b.toFixed(3)} — informative, and the outcome is still open` };
-  return { verdict: "mostly decided", brier: b, n: row.n,
-    why: `over ${row.n} settled ${row.label} windows the quote scored ${b.toFixed(3)} — the market is already near-certain, so there is little left to take a view on` };
+
+  const skill = 1 - row.brier / 0.25;
+  if (skill <= SKILL_FLOOR) return { verdict: "coin flip", skill: +skill.toFixed(3), brier: row.brier, n: row.n,
+    why: `over ${row.n} settled ${row.label} windows the quote scored Brier ${row.brier.toFixed(4)} against the 0.25 a flat 50/50 scores — only ${(skill * 100).toFixed(0)}% better than guessing` };
+  return { verdict: "live", skill: +skill.toFixed(3), brier: row.brier, n: row.n,
+    why: `over ${row.n} settled ${row.label} windows the quote scored Brier ${row.brier.toFixed(4)}, ${(skill * 100).toFixed(0)}% better than a flat 50/50 — informative, and this window is still open` };
 }
 
 let cache: { at: number; data: any } | null = null;
@@ -88,7 +104,8 @@ async function windows() {
       oracle: m.oracleQuestionId
         ? `https://prd.oracle.somnia.host/questions/${m.oracleQuestionId}?view=graph`
         : null,
-      ...verdictFor(intervalSec),
+      venue: m.venueId ? String(m.venueId).slice(2, 8) : null,
+      ...verdictFor(intervalSec, mid),
     };
   }).sort((a, b) => a.secondsLeft - b.secondsLeft);
 
