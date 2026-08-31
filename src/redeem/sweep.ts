@@ -105,9 +105,11 @@ async function main() {
 
     let held: Record<number, bigint>;
     try {
+      // Params object, not positional: the published docs show the old
+      // three-argument form and it silently passes account: undefined.
       held = {
-        [UP]: await exchange.client.getOutcomeBalance(oc.outcomeToken, me, oc.yesId),
-        [DOWN]: await exchange.client.getOutcomeBalance(oc.outcomeToken, me, oc.noId),
+        [UP]: await exchange.client.getOutcomeBalance({ outcomeToken: oc.outcomeToken, account: me, id: BigInt(oc.yesId) }),
+        [DOWN]: await exchange.client.getOutcomeBalance({ outcomeToken: oc.outcomeToken, account: me, id: BigInt(oc.noId) }),
       };
     } catch (e: any) {
       log("balance_read_failed", { marketId, err: String(e?.message ?? e).slice(0, 140) });
