@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>coldstart — which Event Contract windows are worth an opinion</title>
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#12161b; --line:#1e242c; --ink:#e8edf2; --dim:#8b97a5;
+    --up:#3ddc97; --down:#ff6b6b; --warn:#f5a524; --accent:#6ea8fe;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Inter,system-ui,sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 72px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--dim);margin:0 0 28px;max-width:64ch}
+  .sub b{color:var(--ink);font-weight:600}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+  .pill{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12.5px;color:var(--dim)}
+  .pill b{color:var(--ink)}
+  .grid{display:grid;gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .row{display:grid;grid-template-columns:120px 1fr 130px 120px;gap:14px;align-items:center}
+  @media(max-width:760px){.row{grid-template-columns:1fr 1fr;row-gap:10px}}
+  .mkt{font-weight:600}
+  .mkt small{display:block;color:var(--dim);font-weight:400;font-size:12px}
+  .probwrap{display:flex;align-items:center;gap:10px}
+  .track{flex:1;height:26px;border-radius:6px;overflow:hidden;display:flex;background:#0e1216;border:1px solid var(--line)}
+  .pu{background:rgba(61,220,151,.22);border-right:1px solid var(--line)}
+  .pd{background:rgba(255,107,107,.16)}
+  .pnum{font-variant-numeric:tabular-nums;font-size:13px;min-width:86px;color:var(--dim)}
+  .pnum b{color:var(--up)}
+  .pnum i{color:var(--down);font-style:normal}
+  .verdict{font-size:12.5px;font-weight:600;border-radius:6px;padding:4px 9px;display:inline-block;
+           border:1px solid var(--line);cursor:help}
+  .v-coin{color:var(--warn)} .v-live{color:var(--up)} .v-decided{color:var(--dim)} .v-un{color:var(--dim)}
+  .meta{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim);font-size:12.5px}
+  .meta a{color:var(--accent);text-decoration:none;font-size:12px}
+  .meta a:hover{text-decoration:underline}
+  h2{font-size:15px;margin:38px 0 10px;letter-spacing:.02em;text-transform:uppercase;color:var(--dim)}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13.5px}
+  th,td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--dim);font-weight:500}
+  .note{color:var(--dim);font-size:13px;margin-top:12px;max-width:74ch}
+  .chart{display:flex;align-items:flex-end;gap:14px;height:150px;margin:16px 0 6px;padding-top:8px}
+  .bar-i{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%}
+  .bar-f{width:100%;background:linear-gradient(180deg,#2b6a52,#1b4536);border-radius:5px 5px 0 0;min-height:2px}
+  .bar-l{font-size:12px;color:var(--dim)}
+  .bar-v{font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .err{color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>coldstart</h1>
+  <p class="sub">Every dreamDEX Event Contract window, labelled by <b>how much its quoted price has actually predicted</b>.
+     Labels come from a measured Brier score per cadence, not from an opinion — hover any verdict for the number behind it.</p>
+
+  <div class="bar" id="bar"></div>
+  <div class="grid" id="grid"><div class="card">loading…</div></div>
+
+  <h2>What the study found</h2>
+  <div class="card">
+    <div class="chart" id="chart"></div>
+    <table id="cad"></table>
+    <p class="note" id="note"></p>
+  </div>
+</div>
+
+<script>
+const API = location.hostname.includes("baserep")
+  ? "https://coldstart-api.baserep.xyz"
+  : location.protocol + "//" + location.hostname + ":8095";
+
+const clock = s => s<0 ? "expired" : s<60 ? s+"s" : s<3600 ? Math.floor(s/60)+"m "+(s%60)+"s" : Math.floor(s/3600)+"h "+Math.floor(s%3600/60)+"m";
+const cls = v => v==="coin flip"?"v-coin":v==="live"?"v-live":v==="mostly decided"?"v-decided":"v-un";
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function windows(){
+  const g = document.getElementById("grid"), b = document.getElementById("bar");
+  try{
+    const d = await (await fetch(API+"/api/windows")).json();
+    b.innerHTML = `<span class="pill">network <b>${esc(d.network)}</b></span>
+                   <span class="pill">live windows <b>${d.count}</b></span>
+                   <span class="pill">refreshed <b>${new Date().toLocaleTimeString()}</b></span>`;
+    if(!d.windows.length){ g.innerHTML='<div class="card">no live windows right now</div>'; return; }
+    g.innerHTML = d.windows.map(w=>{
+      const up = w.up==null?null:Math.round(w.up*100);
+      return `<div class="card"><div class="row">
+        <div class="mkt">${esc(w.asset)} ${esc(w.cadence)}<small>${w.strike?"strike "+w.strike.toLocaleString():"vs open"}</small></div>
+        <div class="probwrap">
+          <div class="track">${up==null?"":`<div class="pu" style="width:${up}%"></div><div class="pd" style="width:${100-up}%"></div>`}</div>
+          <div class="pnum">${up==null?"no book":`<b>${up}%</b> up / <i>${100-up}%</i> down`}</div>
+        </div>
+        <div><span class="verdict ${cls(w.verdict)}" title="${esc(w.why)}">${esc(w.verdict)}</span></div>
+        <div class="meta">${clock(w.secondsLeft)}<br>spread ${w.spread==null?"—":w.spread.toFixed(3)}
+          ${w.oracle?`<br><a href="${w.oracle}" target="_blank" rel="noopener">resolution receipt ↗</a>`:""}</div>
+      </div></div>`;
+    }).join("");
+  }catch(e){ g.innerHTML = '<div class="card err">API unreachable: '+esc(e.message)+'</div>'; }
+}
+
+async function calibration(){
+  try{
+    const d = await (await fetch(API+"/api/calibration")).json();
+    if(d.error){ document.getElementById("note").textContent = d.error; return; }
+    const c = d.cadences.filter(x=>x.n>=5);
+    const max = Math.max(0.25, ...c.map(x=>x.brier));
+    document.getElementById("chart").innerHTML = c.map(x=>
+      `<div class="bar-i"><div class="bar-v">${x.brier.toFixed(3)}</div>
+       <div class="bar-f" style="height:${Math.max(2,(x.brier/max)*100)}%"></div>
+       <div class="bar-l">${esc(x.label)}</div></div>`).join("");
+    document.getElementById("cad").innerHTML =
+      `<tr><th>cadence</th><th>windows</th><th>Brier</th><th>mean quoted</th><th>realized up</th><th>drift</th><th>±1 SE</th><th>spread</th></tr>` +
+      c.map(x=>`<tr><td>${esc(x.label)}</td><td>${x.n}</td><td>${x.brier.toFixed(4)}</td>
+        <td>${x.meanQuoted.toFixed(3)}</td><td>${x.realizedUp.toFixed(3)}</td>
+        <td>${x.drift>=0?"+":""}${x.drift.toFixed(3)}</td><td>±${x.driftSE.toFixed(3)}</td>
+        <td>${x.meanSpread.toFixed(4)}</td></tr>`).join("");
+    document.getElementById("note").innerHTML =
+      `${d.snapshotRows.toLocaleString()} order-book snapshots over ${d.windowsSettled.toLocaleString()} settled windows on ${esc(d.network)}, collected since 30 Aug 2026.
+       A Brier of 0.25 is what quoting a flat 50/50 scores. <b>No cadence shows drift larger than its own standard error</b>, so the book is
+       calibrated and there is no edge in taking the other side — the useful signal is <i>which windows are worth an opinion at all</i>.
+       Generated ${esc(d.generatedAt)}.`;
+  }catch(e){ document.getElementById("note").textContent = "calibration unavailable: "+e.message; }
+}
+
+windows(); calibration();
+setInterval(windows, 10000);
+setInterval(calibration, 300000);
+</script>
+</body>
+</html>

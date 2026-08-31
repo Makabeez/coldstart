@@ -15,7 +15,7 @@
 import "dotenv/config";
 import { SomniaMarkets, SOMNIA_MAINNET_ADDRESSES, SOMNIA_TESTNET_ADDRESSES } from "@somnia-chain/markets-sdk";
 import { somniaMainnet, somniaShannon } from "@somnia-chain/markets-sdk/chains";
-import { appendFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const MODE = process.argv[2] ?? "snapshot";
 const TESTNET = (process.env.NETWORK ?? "testnet") === "testnet";
@@ -190,7 +190,7 @@ async function split(by: "cadence" | "day") {
   const groups = new Map<string, { n: number; q: number; up: number; brier: number }>();
   for (const s of best.values()) {
     const key = by === "cadence"
-      ? `${s.intervalSec / 60}m`.padStart(5)
+      ? `${[60,300,900,3600,14400,86400].reduce((a,b)=>Math.abs(b-s.intervalSec)<Math.abs(a-s.intervalSec)?b:a)/60}m`.padStart(5)
       : new Date(s.expiry * 1000).toISOString().slice(0, 10);
     const g = groups.get(key) ?? { n: 0, q: 0, up: 0, brier: 0 };
     const won = outcome.get(s.marketId) === 0 ? 1 : 0;
@@ -208,7 +208,70 @@ async function split(by: "cadence" | "day") {
   console.log(`not the book being wrong. A real miscalibration should vary by cadence.`);
 }
 
-const run = MODE === "report" ? report
+/** Precompute what the API serves, so a page load never hits the indexer 2600x. */
+async function summary() {
+  const snaps = loadSnaps();
+  const ids = [...new Set(snaps.map((s) => s.marketId))];
+  const outcome = new Map<string, number>();
+  for (const id of ids) {
+    try {
+      const row = await exchange.client.getBinaryMarket(id);
+      if (row && !row.voided && row.winningOutcome != null) outcome.set(id, Number(row.winningOutcome));
+    } catch { /* skip */ }
+  }
+  const best = new Map<string, Snap>();
+  for (const s of snaps) {
+    if (s.mid == null || !outcome.has(s.marketId)) continue;
+    const cur = best.get(s.marketId);
+    if (!cur || s.secondsLeft < cur.secondsLeft) best.set(s.marketId, s);
+  }
+  const STD = [60, 300, 900, 3600, 14400, 86400];
+  const snap = (i: number) => STD.reduce((a, b) => (Math.abs(b - i) < Math.abs(a - i) ? b : a));
+
+  const byCadence: Record<string, any> = {};
+  const EDGES = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0001];
+  const buckets = EDGES.slice(0, -1).map((lo, i) => ({ lo, hi: EDGES[i + 1], n: 0, up: 0, sumQ: 0 }));
+
+  for (const s of best.values()) {
+    const won = outcome.get(s.marketId) === 0 ? 1 : 0;
+    const key = String(snap(s.intervalSec));
+    const g = (byCadence[key] ??= { intervalSec: snap(s.intervalSec), n: 0, sumQ: 0, up: 0, brier: 0, spread: 0 });
+    g.n++; g.sumQ += s.mid; g.up += won; g.brier += (s.mid - won) ** 2; g.spread += s.spread ?? 0;
+    const b = buckets.find((x) => s.mid >= x.lo && s.mid < x.hi);
+    if (b) { b.n++; b.up += won; b.sumQ += s.mid; }
+  }
+  const cadences = Object.values(byCadence).map((g: any) => ({
+    intervalSec: g.intervalSec,
+    label: g.intervalSec / 60 + "m",
+    n: g.n,
+    brier: +(g.brier / g.n).toFixed(4),
+    meanQuoted: +(g.sumQ / g.n).toFixed(4),
+    realizedUp: +(g.up / g.n).toFixed(4),
+    drift: +(g.up / g.n - g.sumQ / g.n).toFixed(4),
+    // Binomial SE on the realized rate: a drift smaller than this is noise.
+    driftSE: +Math.sqrt(((g.up / g.n) * (1 - g.up / g.n)) / g.n).toFixed(4),
+    meanSpread: +(g.spread / g.n).toFixed(4),
+  })).sort((a, b) => a.intervalSec - b.intervalSec);
+
+  const out = {
+    generatedAt: new Date().toISOString(),
+    network: TESTNET ? "shannon-testnet" : "somnia-mainnet",
+    snapshotRows: snaps.length,
+    windowsObserved: ids.length,
+    windowsSettled: best.size,
+    cadences,
+    calibration: buckets.filter((b) => b.n).map((b) => ({
+      lo: b.lo, hi: Math.min(b.hi, 1), n: b.n,
+      meanQuoted: +(b.sumQ / b.n).toFixed(4), realizedUp: +(b.up / b.n).toFixed(4),
+    })),
+  };
+  const path = `data/summary-${TESTNET ? "testnet" : "mainnet"}.json`;
+  writeFileSync(path, JSON.stringify(out, null, 2));
+  console.log(`${path}: ${best.size} settled windows across ${cadences.length} cadences`);
+}
+
+const run = MODE === "summary" ? summary
+  : MODE === "report" ? report
   : MODE === "by-cadence" ? () => split("cadence")
   : MODE === "by-day" ? () => split("day")
   : snapshot;
