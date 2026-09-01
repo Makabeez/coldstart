@@ -235,8 +235,9 @@ async function summary() {
   for (const s of best.values()) {
     const won = outcome.get(s.marketId) === 0 ? 1 : 0;
     const key = String(snap(s.intervalSec));
-    const g = (byCadence[key] ??= { intervalSec: snap(s.intervalSec), n: 0, sumQ: 0, up: 0, brier: 0, spread: 0 });
+    const g = (byCadence[key] ??= { intervalSec: snap(s.intervalSec), n: 0, sumQ: 0, up: 0, brier: 0, spread: 0, sumPQ: 0 });
     g.n++; g.sumQ += s.mid; g.up += won; g.brier += (s.mid - won) ** 2; g.spread += s.spread ?? 0;
+    g.sumPQ += s.mid * (1 - s.mid);          // model-predicted variance, per observation
     const b = buckets.find((x) => s.mid >= x.lo && s.mid < x.hi);
     if (b) { b.n++; b.up += won; b.sumQ += s.mid; }
   }
@@ -248,13 +249,38 @@ async function summary() {
     meanQuoted: +(g.sumQ / g.n).toFixed(4),
     realizedUp: +(g.up / g.n).toFixed(4),
     drift: +(g.up / g.n - g.sumQ / g.n).toFixed(4),
-    // Binomial SE on the realized rate: a drift smaller than this is noise.
-    driftSE: +Math.sqrt(((g.up / g.n) * (1 - g.up / g.n)) / g.n).toFixed(4),
+    // Calibration-in-the-large: under a calibrated book each window is
+    // Bernoulli(quoted_i), so the SE of the mean gap is sqrt(sum p(1-p))/n.
+    // Using the realized proportion's SE instead treats the quote as a
+    // constant and gets the null wrong.
+    driftSE: +(Math.sqrt(g.sumPQ) / g.n).toFixed(4),
+    z: +((g.up / g.n - g.sumQ / g.n) / (Math.sqrt(g.sumPQ) / g.n)).toFixed(2),
     meanSpread: +(g.spread / g.n).toFixed(4),
   })).sort((a, b) => a.intervalSec - b.intervalSec);
 
+  // Per-cadence calibration curve. The pooled table cannot distinguish a
+  // biased book from an S-shaped one, because each cadence's quotes sit in a
+  // different part of the probability range.
+  const perCadence: Record<string, any[]> = {};
+  for (const s2 of best.values()) {
+    const won = outcome.get(s2.marketId) === 0 ? 1 : 0;
+    const key = String(snap(s2.intervalSec));
+    const bs = (perCadence[key] ??= EDGES.slice(0, -1).map((lo, i) => ({ lo, hi: EDGES[i + 1], n: 0, up: 0, sumQ: 0 })));
+    const b = bs.find((x) => s2.mid >= x.lo && s2.mid < x.hi);
+    if (b) { b.n++; b.up += won; b.sumQ += s2.mid; }
+  }
+  const curves = Object.fromEntries(Object.entries(perCadence).map(([k, bs]) => [
+    Number(k) / 60 + "m",
+    bs.filter((b) => b.n >= 15).map((b) => ({
+      lo: b.lo, hi: Math.min(b.hi, 1), n: b.n,
+      meanQuoted: +(b.sumQ / b.n).toFixed(4), realizedUp: +(b.up / b.n).toFixed(4),
+      gap: +(b.up / b.n - b.sumQ / b.n).toFixed(4),
+    })),
+  ]));
+
   const out = {
     generatedAt: new Date().toISOString(),
+    curves,
     network: TESTNET ? "shannon-testnet" : "somnia-mainnet",
     snapshotRows: snaps.length,
     windowsObserved: ids.length,
@@ -270,7 +296,75 @@ async function summary() {
   console.log(`${path}: ${best.size} settled windows across ${cadences.length} cadences`);
 }
 
-const run = MODE === "summary" ? summary
+/**
+ * Curves at a FIXED time-to-expiry, so cadences are compared like with like.
+ *
+ * The per-cadence curves in `summary` take each window's snapshot nearest
+ * expiry. With 60s snapshots that is a random point inside a 1m window but
+ * always the final minute of a 60m window — so "short vs long cadence" is
+ * confounded with "early vs late in the window". This slices every cadence at
+ * the same horizon instead.
+ *
+ *   npx tsx src/measure/calibration.ts at 30
+ *   npx tsx src/measure/calibration.ts at 120 --tol 45
+ */
+async function curvesAt() {
+  const target = Number(process.argv[3] ?? 30);
+  const i = process.argv.indexOf("--tol");
+  const tol = i > -1 ? Number(process.argv[i + 1]) : 30;
+
+  const snaps = loadSnaps();
+  const ids = [...new Set(snaps.map((s) => s.marketId))];
+  const outcome = new Map<string, number>();
+  for (const id of ids) {
+    try {
+      const row = await exchange.client.getBinaryMarket(id);
+      if (row && !row.voided && row.winningOutcome != null) outcome.set(id, Number(row.winningOutcome));
+    } catch { /* skip */ }
+  }
+  const STD = [60, 300, 900, 3600, 14400, 86400];
+  const snap = (i2: number) => STD.reduce((a, b) => (Math.abs(b - i2) < Math.abs(a - i2) ? b : a));
+
+  // Per market: the snapshot closest to `target` seconds left, if within tol.
+  const best = new Map<string, Snap>();
+  for (const s2 of snaps) {
+    if (s2.mid == null || !outcome.has(s2.marketId)) continue;
+    if (Math.abs(s2.secondsLeft - target) > tol) continue;
+    const cur = best.get(s2.marketId);
+    if (!cur || Math.abs(s2.secondsLeft - target) < Math.abs(cur.secondsLeft - target)) best.set(s2.marketId, s2);
+  }
+
+  console.log(`\ncalibration at T-${target}s (±${tol}s), one observation per window`);
+  const EDG = [0, 0.2, 0.4, 0.6, 0.8, 1.0001];
+  const byCad: Record<string, any> = {};
+  for (const s2 of best.values()) {
+    const key = snap(s2.intervalSec) / 60 + "m";
+    const g = (byCad[key] ??= { n: 0, buckets: EDG.slice(0, -1).map((lo, k) => ({ lo, hi: EDG[k + 1], n: 0, up: 0, sumQ: 0 })) });
+    g.n++;
+    const won = outcome.get(s2.marketId) === 0 ? 1 : 0;
+    const b = g.buckets.find((x: any) => s2.mid >= x.lo && s2.mid < x.hi);
+    if (b) { b.n++; b.up += won; b.sumQ += s2.mid; }
+  }
+  for (const [cad, g] of Object.entries(byCad).sort((a, b) => Number(a[0].replace("m", "")) - Number(b[0].replace("m", "")))) {
+    const rows = (g as any).buckets.filter((b: any) => b.n >= 15);
+    if (!rows.length) { console.log(`\n${cad}  n=${(g as any).n}  (no bucket reaches n=15)`); continue; }
+    // Sign of the gap across the range: + at the top and - at the bottom means
+    // under-confident (quotes too close to 0.5); the reverse is over-confident.
+    const lo = rows[0], hi = rows[rows.length - 1];
+    const loGap = lo.up / lo.n - lo.sumQ / lo.n, hiGap = hi.up / hi.n - hi.sumQ / hi.n;
+    const shape = hiGap > 0.02 && loGap < -0.02 ? "UNDER-confident" : loGap > 0.02 && hiGap < -0.02 ? "OVER-confident" : "no clear tilt";
+    console.log(`\n${cad}  n=${(g as any).n}  ->  ${shape}`);
+    for (const b of rows) {
+      const q = b.sumQ / b.n, r = b.up / b.n;
+      console.log(`  ${b.lo.toFixed(1)}-${(b.hi > 1 ? 1 : b.hi).toFixed(1)}  n=${String(b.n).padStart(5)}  quoted ${q.toFixed(3)}  realized ${r.toFixed(3)}  gap ${(r - q >= 0 ? "+" : "") + (r - q).toFixed(3)}`);
+    }
+  }
+  console.log(`\nIf every cadence tilts the same way at a common horizon, the earlier sign flip`);
+  console.log(`was time-in-window, not cadence.`);
+}
+
+const run = MODE === "at" ? curvesAt
+  : MODE === "summary" ? summary
   : MODE === "report" ? report
   : MODE === "by-cadence" ? () => split("cadence")
   : MODE === "by-day" ? () => split("day")
