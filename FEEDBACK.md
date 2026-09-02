@@ -48,6 +48,11 @@ await exchange.client.getOutcomeBalance({
 });
 ```
 
+**Status:** reported in the hackathon dev channel on 2 Sep 2026 and confirmed by
+the Somnia team, who escalated it internally. PR against the docs offered.
+
+![Somnia team confirming the report](./docs/sdk-feedback-acknowledged.png)
+
 **Suggested fix:** update both Recipes snippets. A runtime guard that throws
 `getOutcomeBalance expects { outcomeToken, account, id }` when the first argument
 is a string would turn a confusing RPC failure into a one-line fix.
