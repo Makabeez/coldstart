@@ -103,7 +103,7 @@ so, and the measurement is in the repo.
 never traded at all — an apparent cold-start problem. But every *live* window
 already carries a two-sided book, three levels a side, 200 contracts at each,
 spread 2.3–2.9 points. There is no liquidity shortage. There is a taker shortage.
-Baseline committed before any code: [`ddf1ce9`](../../commit/ddf1ce9).
+Baseline committed before any code: [`c89bf37`](../../commit/c89bf37).
 
 **Take the other side.** If the book is wrong, cross it. It mostly is not — see
 above. And the round trip is priced exactly: UP at 0.950 plus DOWN at 0.112 on
