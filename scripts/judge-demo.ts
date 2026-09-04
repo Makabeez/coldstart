@@ -8,8 +8,8 @@
  * committed in this repo.
  */
 import { readFileSync, existsSync } from "node:fs";
-import { SomniaMarkets, SOMNIA_TESTNET_ADDRESSES } from "@somnia-chain/markets-sdk";
-import { somniaShannon } from "@somnia-chain/markets-sdk/chains";
+import { SomniaMarkets, SOMNIA_TESTNET_ADDRESSES, SOMNIA_MAINNET_ADDRESSES } from "@somnia-chain/markets-sdk";
+import { somniaShannon, somniaMainnet } from "@somnia-chain/markets-sdk/chains";
 
 const B = "\x1b[1m", D = "\x1b[2m", G = "\x1b[32m", Y = "\x1b[33m", R = "\x1b[0m";
 const rule = () => console.log(D + "─".repeat(72) + R);
@@ -18,11 +18,15 @@ const snapCadence = (i: number) => STD.reduce((a, b) => (Math.abs(b - i) < Math.
 
 /** Live summary if the snapshotter is running here, else the frozen commit. */
 function loadSummary() {
-  for (const p of ["data/summary-testnet.json", "data/summary-frozen-testnet.json"]) {
+  const net = TESTNET ? "testnet" : "mainnet";
+  for (const p of [`data/summary-${net}.json`, `data/summary-frozen-${net}.json`,
+                   "data/summary-frozen-testnet.json"]) {
     if (existsSync(p)) return { ...JSON.parse(readFileSync(p, "utf8")), source: p };
   }
   return null;
 }
+
+const TESTNET = (process.env.NETWORK ?? "testnet") !== "mainnet";
 
 const TXS = [
   ["mint testnet collateral", "0x1a075a541cb8b42565dc8a8722bfaf5f5c1fd63026425696cdb7337223736acb"],
@@ -34,7 +38,7 @@ const TXS = [
 async function main() {
   const t0 = Date.now();
   console.log(`\n${B}coldstart${R} — which dreamDEX Event Contract windows are worth an opinion\n`);
-  console.log(`${D}live board: https://coldstart.baserep.xyz     api: https://coldstart-api.baserep.xyz/api/windows${R}`);
+  console.log(`${D}network: ${TESTNET ? "shannon testnet 50312" : "somnia mainnet 5031"}   live board: https://coldstart.baserep.xyz     api: https://coldstart-api.baserep.xyz/api/windows${R}`);
 
   // ── 1. the measurement ────────────────────────────────────────────────
   rule();
@@ -89,10 +93,13 @@ async function main() {
   // ── 2. the live board ─────────────────────────────────────────────────
   rule();
   console.log(`${B}2. Live windows right now${R}\n`);
-  const exchange: any = new SomniaMarkets({
-    indexerUrl: "https://dev.smk.somnia.host/v1/graphql", chain: somniaShannon,
-    wsRpcUrl: "wss://api.infra.testnet.somnia.network/ws", addresses: SOMNIA_TESTNET_ADDRESSES,
-  } as any);
+  const exchange: any = new SomniaMarkets(
+    TESTNET
+      ? { indexerUrl: "https://dev.smk.somnia.host/v1/graphql", chain: somniaShannon,
+          wsRpcUrl: "wss://api.infra.testnet.somnia.network/ws", addresses: SOMNIA_TESTNET_ADDRESSES }
+      : { indexerUrl: "https://prd.smk.somnia.host/v1/graphql", chain: somniaMainnet,
+          wsRpcUrl: "wss://api.infra.mainnet.somnia.network/ws", addresses: SOMNIA_MAINNET_ADDRESSES } as any,
+  );
 
   const live = await exchange.client.listLiveBinaryMarkets({ limit: 40 });
   const tops = live.length ? await exchange.client.getBookTops(live.map((m: any) => m.marketId)) : {};
@@ -108,12 +115,12 @@ async function main() {
 
   console.log(`   ${"market".padEnd(12)}${"up".padStart(7)}${"spread".padStart(9)}${"left".padStart(8)}   verdict`);
   const rows = (live as any[])
-    .map((m) => ({ m, mid: tops[m.marketId]?.mid == null ? null : Number(tops[m.marketId].mid) / 1e6,
+    .map((m) => ({ m, mid: tops[m.marketId]?.mid == null ? null : Number(tops[m.marketId].mid) / (TESTNET ? 1e6 : 1e18),
                    bid: tops[m.marketId]?.bestBid, ask: tops[m.marketId]?.bestAsk,
                    left: Number(m.expiry) - now }))
     .sort((a, b) => a.left - b.left).slice(0, 8);
   for (const r of rows) {
-    const sp = r.bid != null && r.ask != null ? (Number(r.ask) - Number(r.bid)) / 1e6 : null;
+    const sp = r.bid != null && r.ask != null ? (Number(r.ask) - Number(r.bid)) / (TESTNET ? 1e6 : 1e18) : null;
     console.log(`   ${(r.m.asset + " " + snapCadence(Number(r.m.intervalSec)) / 60 + "m").padEnd(12)}` +
       `${(r.mid == null ? "—" : (r.mid * 100).toFixed(0) + "%").padStart(7)}` +
       `${(sp == null ? "—" : sp.toFixed(3)).padStart(9)}${(r.left + "s").padStart(8)}   ${verdict(Number(r.m.intervalSec), r.mid)}`);

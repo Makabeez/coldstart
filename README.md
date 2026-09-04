@@ -17,9 +17,9 @@ Every Up/Down window on dreamDEX shows you a price. None of them tell you whethe
 that price has ever been right.
 
 `coldstart` labels each live window by the **measured informativeness of its own
-quote** — from 37,000 order-book snapshots across 5,400 settled windows — and
+quote** — from 88,000 order-book snapshots across 13,500 settled windows on two venues — and
 shows the number behind every label. A 1m window is a coin flip wearing a
-probability. A 240m window is already over. Only the middle is worth an opinion.
+probability. A 60m window is already over. Only the middle is worth an opinion.
 
 ```
 npm i && npm run judge-demo      # ~2s, read-only, no wallet, no key, no signup
@@ -29,70 +29,94 @@ npm i && npm run judge-demo      # ~2s, read-only, no wallet, no key, no signup
 
 ## What we measured
 
-One observation per settled window, quoted mid against the realized outcome.
+One observation per settled window, quoted mid against the realized outcome, on
+**two independent venues** — Shannon testnet and Somnia mainnet.
 
-| cadence |     n | Brier  | mean quoted | realized up |  drift |  z   |
-|---------|------:|-------:|------------:|------------:|-------:|-----:|
-| 1m      | 2 357 | 0.2259 |       0.495 |       0.469 | −0.026 | −2.8 |
-| 5m      | 2 357 | 0.0882 |       0.458 |       0.471 | +0.014 | +2.0 |
-| 15m     |   540 | 0.0458 |       0.483 |       0.493 | +0.009 | +0.8 |
-| 60m     |   141 | 0.0175 |       0.555 |       0.603 | +0.048 | +2.6 |
-| 240m    |    24 | 0.0151 |       0.514 |       0.542 | +0.027 | +0.8 |
+| cadence | testnet Brier |     n | mainnet Brier |     n |
+|---------|--------------:|------:|--------------:|------:|
+| 1m      |        0.2296 | 4 881 |             — |     — |
+| 5m      |        0.0919 | 4 690 |        0.1126 | 1 654 |
+| 15m     |        0.0446 |   935 |        0.0554 |   870 |
+| 60m     |        0.0184 |   251 |        0.0181 |   222 |
+| 240m    |        0.0432 |    58 |             — |     — |
 
 A Brier score of 0.25 is what quoting a flat 50/50 scores. **1m windows score
-0.226** — the price moves constantly and predicts almost nothing. **240m windows
-score 0.015** — by the time you look, the outcome is decided and the quote is
-just reading it out.
+0.230** — the price moves constantly and predicts almost nothing. **60m windows
+score 0.018**, and the two venues agree to three decimals on it.
 
-That 15× spread is the product. It is also the only thing here that a trader
-can act on, because the second question — *is the price wrong in a direction you
-can take?* — mostly answers no.
+That is the finding: a 12× spread in how much the quoted price actually knows,
+replicated across venues, with nothing in either interface distinguishing them.
 
-### The book is calibrated, with one exception
+## The book is fair. That is not the interesting part.
 
 Drift is tested as calibration-in-the-large: under a calibrated book each window
 is Bernoulli at its own quoted probability, so the standard error of the mean gap
-is `sqrt(Σ p(1−p)) / n`. 15m and 240m sit inside noise. 5m and 60m are marginal
-and flip sign between horizons.
+is `sqrt(Σ p(1−p)) / n`.
 
-**1m does not.** Sliced at a common T−30s horizon so cadences are compared like
-with like:
+| venue   | cadence |     n |  drift |     z |
+|---------|---------|------:|-------:|------:|
+| testnet | 1m      | 4 881 | −0.009 | −1.3  |
+| testnet | 5m      | 4 690 | +0.008 | +1.6  |
+| testnet | 15m     |   935 | +0.005 | +0.5  |
+| testnet | 60m     |   251 | +0.021 | +1.5  |
+| testnet | 240m    |    58 | +0.004 | +0.1  |
+| mainnet | 5m      | 1 654 | +0.004 | +0.5  |
+| mainnet | 15m     |   870 | +0.004 | +0.4  |
+| mainnet | 60m     |   222 | +0.016 | +1.1  |
 
-| quoted band |    n | mean quoted | realized up |    gap |
-|-------------|-----:|------------:|------------:|-------:|
-| 0.0–0.2     |  162 |       0.124 |       0.216 | +0.092 |
-| 0.2–0.4     |  509 |       0.309 |       0.293 | −0.016 |
-| 0.4–0.6     | 1039 |       0.499 |       0.478 | −0.020 |
-| 0.6–0.8     |  521 |       0.688 |       0.614 | −0.074 |
-| 0.8–1.0     |  136 |       0.877 |       0.809 | −0.068 |
+**Eight tests across two venues, none significant.** There is no edge in taking
+the other side of this book. Which is why the product labels *how much the price
+knows*, not *whether the price is wrong*.
 
-Low quotes realize higher, high quotes realize lower: the book is
-**over-confident** on 1m windows. It pushes prices away from 0.5 harder than the
-outcomes justify — which is coherent with a Brier of 0.226, since a price that
-knows nothing has not earned an extreme quote. The two tail buckets are z ≈ +3.5
-and z ≈ −3.6, which clears a Bonferroni bar across ~50 bucket tests.
+The arbitrage bound says the same thing from a second direction: UP at 0.950 plus
+DOWN at 0.112 on the same window costs 5.31 for a position guaranteed to return
+5.00 — a 31bp loss, exactly two crossings of a 2.8-point spread, measured on-chain
+rather than assumed.
 
-## The pre-registered forward test
+## A hypothesis we pre-registered and falsified
 
-An in-sample edge on 2,367 observations is exactly the kind of thing that
-evaporates out of sample. So the rule was **frozen and committed before the first
-trade**, and the result is published either way.
+On 1 Sep, at n = 2,357, 1m windows appeared over-confident — low quotes realizing
+higher, high quotes realizing lower, tails at z ≈ ±3.5. An in-sample edge on one
+venue is exactly the kind of thing that evaporates, so rather than claim it, we
+froze it as a tradeable rule and **committed it before placing a single trade**:
 
 > **fade1m v1.0.0** — buy DOWN whenever a 1m window quotes UP ≥ 0.60, entered
 > 8–45s before expiry, flat size 2, IOC only.
 > Rule hash `9d46dd1416a0`, committed in [`1a13481`](../../commit/1a13481).
 
-Deliberately **not** traded: the 0.0–0.2 bucket, which looks profitable in the
-opposite direction. Harvesting both would fit the shape of the curve instead of
-testing one hypothesis.
+Deliberately **not** traded: the 0.0–0.2 bucket, which looked profitable in the
+opposite direction. Harvesting both would fit the shape of the curve rather than
+test one hypothesis.
+
+Two independent things then happened.
+
+**The in-sample effect decayed as data accumulated.** Monotonically, which is the
+signature of a false positive rather than a real effect:
+
+| observations | 1m drift |    z |
+|-------------:|---------:|-----:|
+|        2 357 |   −0.026 | −2.8 |
+|        2 665 |   −0.018 | −2.0 |
+|        4 881 |   −0.009 | −1.3 |
+
+**The live forward test converged toward zero from above.** Mean entry cost 0.207,
+so break-even is a 20.7% hit rate:
+
+| settled entries | hit rate | points/contract |
+|----------------:|---------:|----------------:|
+|              31 |    22.6% |            +3.1 |
+|              80 |    22.5% |            +1.8 |
+
+against a predicted +6, with a standard error of 5.6 points at n = 80.
 
 ```
-npx tsx src/strategy/fade1m.ts report
+npx tsx src/strategy/fade1m.ts report      # current out-of-sample state
 ```
 
-Break-even is the mean entry cost (~0.195), so the number that matters is points
-per contract, not percent on stake. Detecting the predicted +6 points at 2 SE
-needs ≈200 settled entries.
+The rule was published before the result and the result is published unchanged.
+It did not work. That is the correct outcome for a hypothesis that was never
+real, and it is why the headline claim of this project is a measurement rather
+than an edge.
 
 ## Two hypotheses this project killed
 
@@ -170,13 +194,12 @@ behind it.
 | settlement outcomes | real, read from chain |
 | fade1m entries and P&L | real, signed transactions on Shannon testnet |
 | board, verdicts, resolution receipts | real, live |
-| mainnet figures | real, but n is small (230 settled windows) — testnet carries the statistics |
+| mainnet figures | real, 2,746 settled windows — independently replicates the testnet result |
 | **nothing here is simulated, backtested against synthetic data, or mocked** | |
 
 Collection window is short — days, not months — and testnet collateral is not
-real money. The 1m result is the only finding strong enough to survive
-multiplicity, and the forward test exists precisely because in-sample strength is
-not evidence.
+real money. The one apparent mispricing we found did not survive more data, and
+we say so above rather than quietly dropping it.
 
 ## Run it yourself
 
