@@ -21,7 +21,7 @@ Every Up/Down window on dreamDEX shows you a price. None of them tell you whethe
 that price has ever been right.
 
 `coldstart` labels each live window by the **measured informativeness of its own
-quote** — from 102,000 order-book snapshots across 14,800 settled windows on two venues — and
+quote** — from 90,000 order-book snapshots across 14,400 settled windows on two venues — and
 shows the number behind every label. A 1m window is a coin flip wearing a
 probability. A 60m window is already over. Only the middle is worth an opinion.
 
@@ -40,17 +40,18 @@ One observation per settled window, quoted mid against the realized outcome, on
 
 | cadence | testnet Brier |     n | mainnet Brier |     n |
 |---------|--------------:|------:|--------------:|------:|
-| 1m      |        0.2296 | 4 881 |             — |     — |
-| 5m      |        0.0919 | 4 690 |        0.1126 | 1 654 |
-| 15m     |        0.0446 |   935 |        0.0554 |   870 |
-| 60m     |        0.0184 |   251 |        0.0181 |   222 |
-| 240m    |        0.0432 |    58 |             — |     — |
+| 1m      |        0.2296 | 4 883 |             — |     — |
+| 5m      |        0.0958 | 5 095 |        0.1162 | 2 165 |
+| 15m     |        0.0446 |   935 |        0.0595 | 1 068 |
+| 60m     |        0.0273 |   291 |        0.0216 |   272 |
+| 240m    |        0.0457 |    70 |             — |     — |
 
 A Brier score of 0.25 is what quoting a flat 50/50 scores. **1m windows score
 0.230** — the price moves constantly and predicts almost nothing. **60m windows
-score 0.018**, and the two venues agree to three decimals on it.
+score 0.027 on testnet and 0.022 on mainnet** — two venues, measured
+independently, same curve.
 
-That is the finding: a 12× spread in how much the quoted price actually knows,
+That is the finding: an 8× spread in how much the quoted price actually knows,
 replicated across venues, with nothing in either interface distinguishing them.
 
 ## The book is fair. That is not the interesting part.
@@ -61,14 +62,14 @@ is `sqrt(Σ p(1−p)) / n`.
 
 | venue   | cadence |     n |  drift |     z |
 |---------|---------|------:|-------:|------:|
-| testnet | 1m      | 4 881 | −0.009 | −1.3  |
-| testnet | 5m      | 4 690 | +0.008 | +1.6  |
+| testnet | 1m      | 4 883 | −0.009 | −1.3  |
+| testnet | 5m      | 5 095 | +0.006 | +1.4  |
 | testnet | 15m     |   935 | +0.005 | +0.5  |
-| testnet | 60m     |   251 | +0.021 | +1.5  |
-| testnet | 240m    |    58 | +0.004 | +0.1  |
-| mainnet | 5m      | 1 654 | +0.004 | +0.5  |
-| mainnet | 15m     |   870 | +0.004 | +0.4  |
-| mainnet | 60m     |   222 | +0.016 | +1.1  |
+| testnet | 60m     |   291 | +0.009 | +0.7  |
+| testnet | 240m    |    70 | +0.022 | +0.8  |
+| mainnet | 5m      | 2 165 | +0.001 | +0.1  |
+| mainnet | 15m     | 1 068 | −0.001 | −0.1  |
+| mainnet | 60m     |   272 | +0.013 | +0.9  |
 
 **Eight tests across two venues, none significant.** There is no edge in taking
 the other side of this book. Which is why the product labels *how much the price
