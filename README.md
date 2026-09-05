@@ -21,7 +21,7 @@ Every Up/Down window on dreamDEX shows you a price. None of them tell you whethe
 that price has ever been right.
 
 `coldstart` labels each live window by the **measured informativeness of its own
-quote** — from 90,000 order-book snapshots across 14,400 settled windows on two venues — and
+quote** — from 102,000 order-book snapshots across 14,800 settled windows on two venues — and
 shows the number behind every label. A 1m window is a coin flip wearing a
 probability. A 60m window is already over. Only the middle is worth an opinion.
 
