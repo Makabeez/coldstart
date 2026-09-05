@@ -4,6 +4,7 @@
 
 **Which dreamDEX Event Contract windows are worth an opinion — measured, not asserted.**
 
+[![demo](https://img.shields.io/badge/demo-2%20min%20video-ff6b6b?style=flat-square)](https://youtube.com/watch?v=ZRPjfe8z5Ro)
 [![live board](https://img.shields.io/badge/live-coldstart.baserep.xyz-3ddc97?style=flat-square)](https://coldstart.baserep.xyz)
 [![api](https://img.shields.io/badge/api-%2Fapi%2Fwindows-6ea8fe?style=flat-square)](https://coldstart-api.baserep.xyz/api/windows)
 [![network](https://img.shields.io/badge/Somnia-Shannon%2050312-8b97a5?style=flat-square)](https://shannon-explorer.somnia.network/)
@@ -17,13 +18,15 @@ Every Up/Down window on dreamDEX shows you a price. None of them tell you whethe
 that price has ever been right.
 
 `coldstart` labels each live window by the **measured informativeness of its own
-quote** — from 88,000 order-book snapshots across 13,500 settled windows on two venues — and
+quote** — from 90,000 order-book snapshots across 14,400 settled windows on two venues — and
 shows the number behind every label. A 1m window is a coin flip wearing a
 probability. A 60m window is already over. Only the middle is worth an opinion.
 
 ```
 npm i && npm run judge-demo      # ~2s, read-only, no wallet, no key, no signup
 ```
+
+**[Watch the 2-minute demo →](https://youtube.com/watch?v=ZRPjfe8z5Ro)**
 
 ---
 
