@@ -1,14 +1,17 @@
 <div align="center">
 
-# coldstart
+<img src="./assets/banner.svg" alt="coldstart" width="900">
 
 **Which dreamDEX Event Contract windows are worth an opinion — measured, not asserted.**
 
-[![demo](https://img.shields.io/badge/demo-2%20min%20video-ff6b6b?style=flat-square)](https://youtube.com/watch?v=ZRPjfe8z5Ro)
-[![live board](https://img.shields.io/badge/live-coldstart.baserep.xyz-3ddc97?style=flat-square)](https://coldstart.baserep.xyz)
-[![api](https://img.shields.io/badge/api-%2Fapi%2Fwindows-6ea8fe?style=flat-square)](https://coldstart-api.baserep.xyz/api/windows)
-[![network](https://img.shields.io/badge/Somnia-Shannon%2050312-8b97a5?style=flat-square)](https://shannon-explorer.somnia.network/)
+[![Watch the demo](https://img.shields.io/badge/WATCH_THE_DEMO-2_min-ff6b6b?style=for-the-badge&logo=youtube&logoColor=white)](https://youtube.com/watch?v=ZRPjfe8z5Ro)
+[![Live board](https://img.shields.io/badge/LIVE_BOARD-coldstart.baserep.xyz-3ddc97?style=for-the-badge)](https://coldstart.baserep.xyz)
+[![Built on Somnia](https://img.shields.io/badge/BUILT_ON-SOMNIA-6ea8fe?style=for-the-badge)](https://shannon-explorer.somnia.network/)
+
+[![api](https://img.shields.io/badge/api-%2Fapi%2Fwindows-8b97a5?style=flat-square)](https://coldstart-api.baserep.xyz/api/windows)
+[![network](https://img.shields.io/badge/Shannon_50312_%2B_mainnet_5031-8b97a5?style=flat-square)](https://shannon-explorer.somnia.network/)
 [![sdk](https://img.shields.io/badge/markets--sdk-0.28.1-8b97a5?style=flat-square)](https://www.npmjs.com/package/@somnia-chain/markets-sdk)
+[![license](https://img.shields.io/badge/license-MIT-8b97a5?style=flat-square)](./LICENSE)
 
 </div>
 
